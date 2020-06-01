@@ -4,7 +4,7 @@ Load tester for the openEHR API
 
 ## Build
 
-gradle build
+./gradlew build
 
 
 # Run
