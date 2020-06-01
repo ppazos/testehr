@@ -18,7 +18,7 @@ repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
-    maven { url 'https://jitpack.io' }
+    //maven { url 'https://jitpack.io' }
 }
 
 dependencies {
@@ -27,6 +27,8 @@ dependencies {
 
     // Use the awesome Spock testing and specification framework
     testImplementation 'org.spockframework:spock-core:1.3-groovy-2.5'
+
+    compile 'log4j:log4j:1.2.17'
 
     // TODO
     //implementation 'com.github.ppazos:openEHR-OPT:Tag'
