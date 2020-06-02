@@ -1,2 +1,4 @@
 Manifest-Version: 1.0
+Class-Path: openEHR_OPT.jar log4j-1.2.17.jar
+Main-Class: org.openehr.testehr.App
 
