@@ -1,6 +1,7 @@
 package org.openehr.testehr
 
 import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 import groovy.cli.commons.CliBuilder // groovy.util.CliBuilder
 import com.cabolabs.openehr.opt.parser.OperationalTemplateParser
 import com.cabolabs.openehr.opt.model.OperationalTemplate
@@ -169,13 +170,31 @@ class App {
     }
 
     // executes a query to check for it's execution time
-    boolean witnessQuery(String aql)
+    boolean witnessQuery(String aql_body)
     {
         try
         {
+            def post = new URL(base_url +"/query/aql").openConnection()
 
+            def body = aql_body
+
+            post.setRequestMethod("POST")
+            post.setDoOutput(true)
+            post.setRequestProperty("Content-Type", "application/json")
+            //post.setRequestProperty("Prefer", "return=representation")
+            post.setRequestProperty("Accept", "application/json")
+            post.getOutputStream().write(body.getBytes("UTF-8"))
+
+            def status = post.getResponseCode()
+
+            if ([200].contains(status))
+            {
+                return true
+            }
+
+            return false
         }
-        catch (Exception e)
+        catch (Exception e) // connection issues
         {
             println e.message
             return false
@@ -197,7 +216,7 @@ class App {
 
         def options = cli.parseFromSpec(AppArgs, args)
 
-        if (args.size() < 6)
+        if (args.size() < 8)
         {
            cli.usage()
            System.exit(0)
@@ -209,6 +228,7 @@ class App {
         def ehr_count = options.ehrs()
         def template_location = options.template()
         def composition_count = options.compositions()
+        def aql_location = options.aql()
 
         //println ehr_count
         //println template_location
@@ -239,6 +259,7 @@ class App {
             println "template ${opt.templateId} already exists on the server"
         }
 
+
         // 5. generate compositions
         def committed_compositions = 0
         composition_count.times {
@@ -246,14 +267,33 @@ class App {
             def generator = new JsonInstanceCanonicalGenerator2()
             String json_compo = generator.generateJSONCompositionStringFromOPT(opt)
 
-            // 6. commit compositions
+            // 5.1. commit compositions
             if (testehr.commitComposition(testehr.ehr_ids.pick(), json_compo))
             {
                 committed_compositions ++
             }
         }
 
+
+        // 6. witness query
+
+        // 6.1. set the ehr_id in the query
+        def aql_json = new JsonSlurper().parseText(new File(aql_location).text)
+        aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
+        def aql_body = JsonOutput.toJson(aql_json)
+
+        // 6.2. execute the query
+        def before = System.currentTimeMillis()
+        if (!testehr.witnessQuery(aql_body))
+        {
+            println "There was a problem running the query"
+        }
+        def after = System.currentTimeMillis()
+
+
+        // 7. report
         println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()}"
         println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions}"
+        println "Query time: ${(after - before)} ms"
     }
 }
