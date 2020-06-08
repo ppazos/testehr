@@ -55,17 +55,10 @@ class App {
         }
     }
 
-    OperationalTemplate readTemplate(String template_location)
+    // parses the opt from the file, the caller already checked the file exists
+    OperationalTemplate readTemplate(File opt_file)
     {
         def parser = new OperationalTemplateParser()
-        def opt_file = new File(template_location)
-
-        if (!opt_file.exists())
-        {
-            println "File ${template_location} doesn't exist"
-            return
-        }
-
         try
         {
            def opt = parser.parse(opt_file.text)
@@ -230,37 +223,81 @@ class App {
         def composition_count = options.compositions()
         def aql_location = options.aql()
 
+        if (!template_location)
+        {
+           println "template parameter wasn't provided"
+           cli.usage()
+           System.exit(0)
+        }
+
+        def template_file = new File(template_location)
+
+        if (!template_file.exists())
+        {
+           println "template file doesn't exists at ${template_location}"
+           cli.usage()
+           System.exit(0)
+        }
+
+        if (!aql_location)
+        {
+           println "aql parameter wasn't provided"
+           cli.usage()
+           System.exit(0)
+        }
+        
+        def aql_file = new File(aql_location)
+
+        if (!aql_file.exists())
+        {
+           println "aql file doesn't exists at ${aql_location}"
+           cli.usage()
+           System.exit(0)
+        }
+
         //println ehr_count
         //println template_location
 
-        // ---------------------------------------------------------------------
 
         def testehr = new App()
 
-        // 1. create EHRs
+
+        // 1. parse template, check if invalid
+        def opt = testehr.readTemplate(template_file)
+
+        if (!opt)
+        {
+            println "There was a problem parsing the OPT, please verify it's valid"
+            System.exit(0)
+        }
+
+        // ---------------------------------------------------------------------
+
+
+        // 2. create EHRs
         println "Creating EHRs..."
         ehr_count.times {
             testehr.createEHR()
         }
 
-        // 2. parse template
-        def opt = testehr.readTemplate(template_location)
 
         // 3. check template exists
+        println "Checking template exists in the server..."
         if (!testehr.templateExists(opt.templateId))
         {
-            println "template ${opt.templateId} is not on the server"
+            println "Template ${opt.templateId} is not in the server"
 
             // 4. upload template
             testehr.uploadTemplate(template_location)
         }
         else
         {
-            println "template ${opt.templateId} already exists on the server"
+            println "Template ${opt.templateId} exists in the server"
         }
 
 
         // 5. generate compositions
+        println "Committing auto-generated compositions..."
         def committed_compositions = 0
         composition_count.times {
 
@@ -278,11 +315,12 @@ class App {
         // 6. witness query
 
         // 6.1. set the ehr_id in the query
-        def aql_json = new JsonSlurper().parseText(new File(aql_location).text)
+        def aql_json = new JsonSlurper().parseText(aql_file.text)
         aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
         def aql_body = JsonOutput.toJson(aql_json)
 
         // 6.2. execute the query
+        println "Executing witness query to check times..."
         def before = System.currentTimeMillis()
         if (!testehr.witnessQuery(aql_body))
         {
@@ -292,6 +330,7 @@ class App {
 
 
         // 7. report
+        println ""
         println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()}"
         println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions}"
         println "Query time: ${(after - before)} ms"
