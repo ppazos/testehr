@@ -6,10 +6,12 @@ import groovy.cli.commons.CliBuilder // groovy.util.CliBuilder
 import com.cabolabs.openehr.opt.parser.OperationalTemplateParser
 import com.cabolabs.openehr.opt.model.OperationalTemplate
 import com.cabolabs.openehr.opt.instance_generator.JsonInstanceCanonicalGenerator2
+import java.util.Properties
+import java.io.InputStream
 
 class App {
 
-    static String base_url = 'http://192.168.1.110:8080/ehrbase/rest/openehr/v1'
+    static String base_url // = 'http://192.168.1.110:8080/ehrbase/rest/openehr/v1'
 
     def ehr_ids = []
 
@@ -197,6 +199,26 @@ class App {
     static void main(String[] args)
     {
         //println args
+
+        // load config
+        try
+        {
+            //println getClass().getResource('/config.properties') // works!
+            InputStream is = getClass().getResourceAsStream("/config.properties")    
+            Properties properties = new Properties()
+            properties.load(is)
+
+            //println properties.base_url
+
+            base_url = properties.base_url
+        }
+        catch (Exception e)
+        {
+            println "Can't load config.properties"
+            System.exit(0)
+        }
+
+
 
         // Util
         java.util.ArrayList.metaClass.pick {

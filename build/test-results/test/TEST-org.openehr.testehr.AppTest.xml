@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="org.openehr.testehr.AppTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2020-06-08T17:51:29" hostname="pablo-torri-mint19" time="0.155">
+<testsuite name="org.openehr.testehr.AppTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2020-06-09T22:09:19" hostname="pablo-torri-mint19" time="0.164">
   <properties/>
-  <testcase name="application has a greeting" classname="org.openehr.testehr.AppTest" time="0.155"/>
+  <testcase name="application has a greeting" classname="org.openehr.testehr.AppTest" time="0.164"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
