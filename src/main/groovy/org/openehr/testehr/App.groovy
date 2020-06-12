@@ -186,6 +186,15 @@ class App {
             {
                 return true
             }
+            else
+            {
+                /* TODO: for errored queries, show error
+                def response_body = post.getInputStream().getText()
+                def json_parser = new JsonSlurper()
+                def response = json_parser.parseText(response_body)
+                response.error
+                */
+            }
 
             return false
         }
@@ -200,7 +209,9 @@ class App {
     {
         //println args
 
+        // --------------------------------------------------------------------------
         // load config
+        
         try
         {
             //println getClass().getResource('/config.properties') // works!
@@ -219,8 +230,9 @@ class App {
         }
 
 
-
+        // --------------------------------------------------------------------------
         // Util
+        
         java.util.ArrayList.metaClass.pick {
             delegate.get( new Random().nextInt( delegate.size() ) )
         }
@@ -228,6 +240,10 @@ class App {
         def cli = new CliBuilder(usage:'testehr [options]', header:'Options:')
         //cli.ehrs(args:1, argName:'ehrs', 'number of EHRs to create')
         //cli.template(args:1, argName:'template', 'operational template file location')
+
+
+        // --------------------------------------------------------------------------
+        // Argument processing
 
         def options = cli.parseFromSpec(AppArgs, args)
 
@@ -277,9 +293,27 @@ class App {
            System.exit(0)
         }
 
+
+        // If aql_file is a folder, read the JSON files in that folder and execute all of them as queries, then report back each individual result
+        def aql_files = []
+        if (aql_file.isDirectory())
+        {
+            aql_file.eachFileMatch(~/.*\.json/) { aql ->
+                aql_files << aql
+            }
+        }
+        else
+        {
+            aql_files << aql_file
+        }
+
+
         //println ehr_count
         //println template_location
 
+
+        // --------------------------------------------------------------------------
+        // Test execution
 
         def testehr = new App()
 
@@ -337,24 +371,36 @@ class App {
         // 6. witness query
 
         // 6.1. set the ehr_id in the query
-        def aql_json = new JsonSlurper().parseText(aql_file.text)
-        aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
-        def aql_body = JsonOutput.toJson(aql_json)
+        def aql_json, aql_body, before, after
+        aql_files.each { aql ->
 
-        // 6.2. execute the query
-        println "Executing witness query to check times..."
-        def before = System.currentTimeMillis()
-        if (!testehr.witnessQuery(aql_body))
-        {
-            println "There was a problem running the query"
+            aql_json = new JsonSlurper().parseText(aql.text)
+            aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
+            aql_body = JsonOutput.toJson(aql_json)
+
+            // 6.2. execute the query
+            print "Executing query ${aql.name}".padRight(75)
+            
+            before = System.currentTimeMillis()
+            if (!testehr.witnessQuery(aql_body))
+            {
+                print "ERROR".padRight(8)
+            }
+            else
+            {
+                print "OK".padRight(8)
+            }
+            after = System.currentTimeMillis()
+
+            println "\t${(after - before)} ms"
         }
-        def after = System.currentTimeMillis()
+
 
 
         // 7. report
         println ""
         println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()}"
         println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions}"
-        println "Query time: ${(after - before)} ms"
+
     }
 }
