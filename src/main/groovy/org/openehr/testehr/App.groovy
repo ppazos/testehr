@@ -165,44 +165,44 @@ class App {
     }
 
     // executes a query to check for it's execution time
-    boolean witnessQuery(String aql_body)
+    Map witnessQuery(String aql_body)
     {
+        def post, status
         try
         {
-            def post = new URL(base_url +"/query/aql").openConnection()
-
-            def body = aql_body
+            post = new URL(base_url +"/query/aql").openConnection()
 
             post.setRequestMethod("POST")
             post.setDoOutput(true)
             post.setRequestProperty("Content-Type", "application/json")
             //post.setRequestProperty("Prefer", "return=representation")
             post.setRequestProperty("Accept", "application/json")
-            post.getOutputStream().write(body.getBytes("UTF-8"))
 
-            def status = post.getResponseCode()
+            post.getOutputStream().write(aql_body.getBytes("UTF-8"))
+
+            status = post.getResponseCode()
 
             if ([200].contains(status))
             {
-                return true
+                return [result: 'ok']
             }
             else
             {
-                /* TODO: for errored queries, show error
+                /*
                 def response_body = post.getInputStream().getText()
                 def json_parser = new JsonSlurper()
                 def response = json_parser.parseText(response_body)
                 response.error
                 // {"error":"Could not retrieve stored query, reason:java.lang.NullPointerException","status":"Bad Request"}
                 */
-            }
 
-            return false
+                // if !2xx, the body should be read using getErrorStream(), getInputStream() only works for 2xx
+                return [result: 'error', error: post.getErrorStream().getText()]
+            }
         }
         catch (Exception e) // connection issues
         {
-            println e.message
-            return false
+            return [result: 'error', error: e.message]
         }
     }
 
@@ -372,8 +372,9 @@ class App {
         // 6. witness query
 
         // 6.1. set the ehr_id in the query
-        def aql_json, aql_body, before, after
-        aql_files.each { aql ->
+        def aql_json, aql_body, before, after, query_result
+        def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
+        aql_files.sort{ it.name }.each { aql ->
 
             aql_json = new JsonSlurper().parseText(aql.text)
 
@@ -388,9 +389,11 @@ class App {
             print "Executing query ${aql.name}".padRight(75)
             
             before = System.currentTimeMillis()
-            if (!testehr.witnessQuery(aql_body))
+            query_result = testehr.witnessQuery(aql_body)
+            if (query_result.result == 'error')
             {
                 print "ERROR".padRight(8)
+                out_log << aql.name.padRight(75) + query_result.error + "\n"
             }
             else
             {
