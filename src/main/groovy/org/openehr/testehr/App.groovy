@@ -370,11 +370,13 @@ class App {
 
 
         // 6. witness query
+        println "Testing ${aql_files.size()} queries..."
 
         // 6.1. set the ehr_id in the query
         def aql_json, aql_body, before, after, query_result
         def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
-        aql_files.sort{ it.name }.each { aql ->
+
+        aql_files.sort{ it.name }.eachWithIndex { aql, i ->
 
             aql_json = new JsonSlurper().parseText(aql.text)
 
@@ -386,7 +388,7 @@ class App {
             }
 
             // 6.2. execute the query
-            print "Executing query ${aql.name}".padRight(75)
+            print "Executing query ${(i+1).toString().padLeft(2)}) ${aql.name}".padRight(75)
             
             before = System.currentTimeMillis()
             query_result = testehr.witnessQuery(aql_body)
