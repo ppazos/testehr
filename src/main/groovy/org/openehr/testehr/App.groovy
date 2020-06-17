@@ -210,6 +210,8 @@ class App {
     {
         //println args
 
+        def before, after, ehr_time, composition_time = 0 // for time checking
+
         // --------------------------------------------------------------------------
         // load config
         
@@ -333,9 +335,13 @@ class App {
 
         // 2. create EHRs
         println "Creating EHRs..."
+        before = System.currentTimeMillis()
         ehr_count.times {
             testehr.createEHR()
         }
+        after = System.currentTimeMillis()
+
+        ehr_time = after - before
 
 
         // 3. check template exists
@@ -356,24 +362,29 @@ class App {
         // 5. generate compositions
         println "Committing auto-generated compositions..."
         def committed_compositions = 0
+        def generator, json_compo
         composition_count.times {
 
-            def generator = new JsonInstanceCanonicalGenerator2()
-            String json_compo = generator.generateJSONCompositionStringFromOPT(opt)
+            generator = new JsonInstanceCanonicalGenerator2()
+            json_compo = generator.generateJSONCompositionStringFromOPT(opt)
 
             // 5.1. commit compositions
+            before = System.currentTimeMillis()
             if (testehr.commitComposition(testehr.ehr_ids.pick(), json_compo))
             {
                 committed_compositions ++
             }
+            after = System.currentTimeMillis()
+            composition_time += (after - before) // only counts the time to commit, avoiding the JSON generation time
         }
+
 
 
         // 6. witness query
         println "Testing ${aql_files.size()} queries..."
 
         // 6.1. set the ehr_id in the query
-        def aql_json, aql_body, before, after, query_result
+        def aql_json, aql_body, query_result
         def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
 
         aql_files.sort{ it.name }.eachWithIndex { aql, i ->
@@ -410,8 +421,8 @@ class App {
 
         // 7. report
         println ""
-        println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()}"
-        println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions}"
+        println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
+        println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions} / took ${composition_time} ms, (${(composition_time / composition_count).round(1)} ms AVG per Composition)"
 
     }
 }
