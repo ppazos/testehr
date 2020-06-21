@@ -1,5 +1,5 @@
 {
-  "q": "SELECT c/uid/value FROM EHR e[ehr_id/value=$ehr_id] CONTAINS COMPOSITION c[openEHR-EHR-COMPOSITION.minimal.v1] CONTAINS ACTION a[openEHR-EHR-ACTION.minimal.v1] WHERE a/ism_transition/current_state/defining_code/code_string = '526'",
+  "q": "SELECT c/uid/value FROM EHR e[ehr_id/value=$ehr_id] CONTAINS COMPOSITION c[openEHR-EHR-COMPOSITION.minimal.v1] CONTAINS ACTION a[openEHR-EHR-ACTION.minimal_2.v1] WHERE a/ism_transition/current_state/defining_code/code_string = '526'",
   "offset": 0,
   "fetch": 20,
   "query_parameters": {
