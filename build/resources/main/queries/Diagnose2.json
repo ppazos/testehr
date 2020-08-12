@@ -1,9 +1,0 @@
-{
-  "q": "SELECT x/data[at0001]/items[at0002]/value/defining_code/code_string as diagnosis, x/data[at0001]/items[at0077]/value/value as time FROM EHR e CONTAINS COMPOSITION c CONTAINS EVALUATION x[openEHR-EHR-EVALUATION.problem_diagnosis.v1] where e/ehr_id/value = $ehr_id and x/data[at0001]/items[at0002]/value/defining_code/code_string = $covid_icd order by x/data[at0001]/items[at0077]/value/value desc",
-  "offset": 0,
-  "fetch": 20,
-  "query_parameters": {
-    "ehr_id": "__set_by_testehr__",
-    "covid_icd": "B34.2"
-  }
-}

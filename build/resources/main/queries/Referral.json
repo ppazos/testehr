@@ -1,8 +1,0 @@
-{
-  "q": "SELECT c/uid/value FROM EHR e[ehr_id/value=$ehr_id] CONTAINS COMPOSITION c[openEHR-EHR-COMPOSITION.referral.v1] CONTAINS INSTRUCTION i[openEHR-EHR-INSTRUCTION.request-referral.v1] CONTAINS CLUSTER cl[openEHR-EHR-CLUSTER.individual_personal.v1] WHERE cl/items[at0017]/value/defining_code/code_string = 'at0020'",
-  "offset": 0,
-  "fetch": 20,
-  "query_parameters": {
-    "ehr_id": "__set_by_testehr__"
-  }
-}
