@@ -1,3 +1,38 @@
+// ----------------------------------
+// README!
+//
+// 1. All queries are based on the resources/opt/nested.opt template.
+// 2. The only part that varies in the expected results is the "q" value, the resulting columns should be the same for the empty results and for the loaded results.
+// 3. Below there are only empty results, the loaded resutls could be auto-generated considering this is the committed composition: https://github.com/ehrbase/ehrbase/blob/develop/tests/robot/_resources/test_data_sets/valid_templates/nested/nested.composition.xml#L140-L148
+// 4. These are the expected rows with that composition loaded:
+// {
+//     "q": "__THE_QUERY_HERE__",
+//     "columns": [
+//         {
+//             "name": "#0",
+//             "path": "/uid/value"
+//         },
+//         {
+//             "name": "#1",
+//             "path": "/items[at0002]/value"
+//         }
+//     ],
+//     "rows": [
+//          [
+//               "__COMPOSITION_UID__",
+//               {
+//                   "_type": "DV_COUNT",
+//                   "magnitude": 7
+//               }
+//          ]
+//     ]
+// }
+//
+// 5. if more than one composition is committed, with the same DV_COUNT.value, the row count will be the number of committed compositions and the values will be the same.
+//
+// ----------------------------------
+
+
 // nested_3_levels_contains_anyehr.json
 //
 // c/uid/value : String
