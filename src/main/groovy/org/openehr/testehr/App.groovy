@@ -295,7 +295,7 @@ class App {
         // Test execution
 
         def testehr = new App()
-        def xml_temp, orig_template_id, xml_string, file_temp
+        def xml_temp, orig_template_id, xml_string, file_temp, temp_template_location
 
         // this parsing is done once for generating new templates
         xml_string = template_file.text
@@ -303,135 +303,149 @@ class App {
         xml_temp = new XmlParser(false, false).parseText(xml_string)
         orig_template_id = xml_temp.template_id.value.text()
 
-
-        scale_templates.times { i ->
+        scale_templates.times { scale_templates_i ->
 
             // modify the template ID for the 2nd to N template
-            if (i > 0)
+            if (scale_templates_i > 0)
             {
-                // setting new template ID
-                xml_temp.template_id.replaceNode {
-                    template_id {
-                        value(orig_template_id +"_"+ i)
+                temp_template_location = template_file.getParent() + File.separator + "${orig_template_id}_${scale_templates_i}.opt"
+
+                file_temp = new File(temp_template_location)
+
+                // create the new template only if it doesnt exists, saves time for future runs
+                if (!file_temp.exists())
+                {
+                    // setting new template ID
+                    xml_temp.template_id.replaceNode {
+                        template_id {
+                            value(orig_template_id +"_"+ scale_templates_i)
+                        }
                     }
+
+                    // setting also the uid because EHRBASE fails with same uids
+                    xml_temp.uid.replaceNode {
+                        uid {
+                            value(UUID.randomUUID().toString())
+                        }
+                    }
+
+                    // save opt file with new template ID
+                    xml_string = groovy.xml.XmlUtil.serialize(xml_temp)
+
+                    file_temp << xml_string
                 }
-
-                // save opt file with new template ID
-                xml_string = groovy.xml.XmlUtil.serialize(xml_temp)
-
-                file_temp = new File(template_file.getParent(), orig_template_id +"_"+ i + ".opt")
-                file_temp << xml_string
 
                 // now the rest of the tests will run with the new template/template_id
                 template_file = file_temp
-                
+                template_location = temp_template_location
             }
-            println i
-        }
-
-        // 1. parse template, check if invalid
-        def opt = testehr.readTemplate(template_file)
-
-        if (!opt)
-        {
-            println "There was a problem parsing the OPT, please verify it's valid"
-            System.exit(0)
-        }
-
-        // ---------------------------------------------------------------------
 
 
-        // 2. create EHRs
-        println "Creating EHRs..."
-        before = System.currentTimeMillis()
-        ehr_count.times {
-            testehr.createEHR()
-        }
-        after = System.currentTimeMillis()
+            println ">>>>> ${scale_templates_i}"
 
-        ehr_time = after - before
+            // 1. parse template, check if invalid
+            def opt = testehr.readTemplate(template_file)
 
-
-        // 3. check template exists
-        println "Checking template exists in the server..."
-        if (!testehr.templateExists(opt.templateId))
-        {
-            println "Template ${opt.templateId} is not in the server"
-
-            // 4. upload template
-            testehr.uploadTemplate(template_location)
-        }
-        else
-        {
-            println "Template ${opt.templateId} exists in the server"
-        }
-
-
-        // 5. generate compositions
-        println "Committing auto-generated compositions..."
-        def committed_compositions = 0
-        def generator, json_compo
-        composition_count.times {
-
-            generator = new JsonInstanceCanonicalGenerator2()
-            json_compo = generator.generateJSONCompositionStringFromOPT(opt)
-
-            // 5.1. commit compositions
-            before = System.currentTimeMillis()
-            if (testehr.commitComposition(testehr.ehr_ids.pick(), json_compo))
+            if (!opt)
             {
-                committed_compositions ++
+                println "There was a problem parsing the OPT, please verify it's valid"
+                System.exit(0)
+            }
+
+            // ---------------------------------------------------------------------
+
+
+            // 2. create EHRs
+            println "Creating EHRs..."
+            before = System.currentTimeMillis()
+            ehr_count.times {
+                testehr.createEHR()
             }
             after = System.currentTimeMillis()
-            composition_time += (after - before) // only counts the time to commit, avoiding the JSON generation time
-        }
+
+            ehr_time = after - before
 
 
-
-        // 6. witness query
-        println "Testing ${aql_files.size()} queries..."
-
-        // 6.1. set the ehr_id in the query
-        def aql_json, aql_body, query_result
-        def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
-
-        aql_files.sort{ it.name }.eachWithIndex { aql, i ->
-
-            aql_json = new JsonSlurper().parseText(aql.text)
-
-            // set the ehr_id only if there it is in the query json
-            if (aql_json.query_parameters && aql_json.query_parameters.ehr_id)
+            // 3. check template exists
+            println "Checking template exists in the server..."
+            if (!testehr.templateExists(opt.templateId))
             {
-                aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
-                aql_body = JsonOutput.toJson(aql_json)
-            }
+                println "Template ${opt.templateId} is not in the server"
 
-            // 6.2. execute the query
-            print "Executing query ${(i+1).toString().padLeft(2)}) ${aql.name}".padRight(75)
-            
-            before = System.currentTimeMillis()
-            query_result = testehr.witnessQuery(aql_body)
-            if (query_result.result == 'error')
-            {
-                print "ERROR".padRight(8)
-                out_log << aql.name.padRight(75) + query_result.error + "\n"
+                // 4. upload template
+                testehr.uploadTemplate(template_location)
             }
             else
             {
-                print "OK".padRight(8)
+                println "Template ${opt.templateId} exists in the server"
             }
-            after = System.currentTimeMillis()
 
-            println "\t${(after - before)} ms"
+
+            // 5. generate compositions
+            println "Committing auto-generated compositions..."
+            def committed_compositions = 0
+            def generator, json_compo
+            composition_count.times {
+
+                generator = new JsonInstanceCanonicalGenerator2()
+                json_compo = generator.generateJSONCompositionStringFromOPT(opt)
+
+                // 5.1. commit compositions
+                before = System.currentTimeMillis()
+                if (testehr.commitComposition(testehr.ehr_ids.pick(), json_compo))
+                {
+                    committed_compositions ++
+                }
+                after = System.currentTimeMillis()
+                composition_time += (after - before) // only counts the time to commit, avoiding the JSON generation time
+            }
+
+
+
+            // 6. witness query
+            println "Testing ${aql_files.size()} queries..."
+
+            // 6.1. set the ehr_id in the query
+            def aql_json, aql_body, query_result
+            def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
+
+            aql_files.sort{ it.name }.eachWithIndex { aql, i ->
+
+                aql_json = new JsonSlurper().parseText(aql.text)
+
+                // set the ehr_id only if there it is in the query json
+                if (aql_json.query_parameters && aql_json.query_parameters.ehr_id)
+                {
+                    aql_json.query_parameters.ehr_id = testehr.ehr_ids.pick()
+                    aql_body = JsonOutput.toJson(aql_json)
+                }
+
+                // 6.2. execute the query
+                print "Executing query ${(i+1).toString().padLeft(2)}) ${aql.name}".padRight(75)
+                
+                before = System.currentTimeMillis()
+                query_result = testehr.witnessQuery(aql_body)
+                if (query_result.result == 'error')
+                {
+                    print "ERROR".padRight(8)
+                    out_log << aql.name.padRight(75) + query_result.error + "\n"
+                }
+                else
+                {
+                    print "OK".padRight(8)
+                }
+                after = System.currentTimeMillis()
+
+                println "\t${(after - before)} ms"
+            }
+
+
+
+            // 7. report
+            println ""
+            println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
+            println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions} / took ${composition_time} ms, (${(composition_time / composition_count).round(1)} ms AVG per Composition)"
         }
-
-
-
-        // 7. report
-        println ""
-        println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
-        println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions} / took ${composition_time} ms, (${(composition_time / composition_count).round(1)} ms AVG per Composition)"
-
     }
 
     static def validateArguments(Integer ehr_count, String template_location, Integer composition_count, String aql_location, Integer scale_templates)
