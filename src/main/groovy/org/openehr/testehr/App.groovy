@@ -8,12 +8,15 @@ import com.cabolabs.openehr.opt.model.OperationalTemplate
 import com.cabolabs.openehr.opt.instance_generator.JsonInstanceCanonicalGenerator2
 import java.util.Properties
 import java.io.InputStream
+import net.pempek.unicode.UnicodeBOMInputStream
 
 class App {
 
     static String base_url // = 'http://192.168.1.110:8080/ehrbase/rest/openehr/v1'
+    static def cli
 
     def ehr_ids = []
+
 
     boolean createEHR()
     {
@@ -240,7 +243,7 @@ class App {
             delegate.get( new Random().nextInt( delegate.size() ) )
         }
 
-        def cli = new CliBuilder(usage:'testehr [options]', header:'Options:')
+        cli = new CliBuilder(usage:'testehr [options]', header:'Options:')
         //cli.ehrs(args:1, argName:'ehrs', 'number of EHRs to create')
         //cli.template(args:1, argName:'template', 'operational template file location')
 
@@ -263,39 +266,12 @@ class App {
         def template_location = options.template()
         def composition_count = options.compositions()
         def aql_location = options.aql()
+        def scale_templates = options.scaleTemplates()
 
-        if (!template_location)
-        {
-           println "template parameter wasn't provided"
-           cli.usage()
-           System.exit(0)
-        }
+        validateArguments(ehr_count, template_location, composition_count, aql_location, scale_templates)
 
         def template_file = new File(template_location)
-
-        if (!template_file.exists())
-        {
-           println "template file doesn't exists at ${template_location}"
-           cli.usage()
-           System.exit(0)
-        }
-
-        if (!aql_location)
-        {
-           println "aql parameter wasn't provided"
-           cli.usage()
-           System.exit(0)
-        }
-        
         def aql_file = new File(aql_location)
-
-        if (!aql_file.exists())
-        {
-           println "aql file doesn't exists at ${aql_location}"
-           cli.usage()
-           System.exit(0)
-        }
-
 
         // If aql_file is a folder, read the JSON files in that folder and execute all of them as queries, then report back each individual result
         def aql_files = []
@@ -319,7 +295,39 @@ class App {
         // Test execution
 
         def testehr = new App()
+        def xml_temp, orig_template_id, xml_string, file_temp
 
+        // this parsing is done once for generating new templates
+        xml_string = template_file.text
+        xml_string = removeBOM(xml_string.getBytes())
+        xml_temp = new XmlParser(false, false).parseText(xml_string)
+        orig_template_id = xml_temp.template_id.value.text()
+
+
+        scale_templates.times { i ->
+
+            // modify the template ID for the 2nd to N template
+            if (i > 0)
+            {
+                // setting new template ID
+                xml_temp.template_id.replaceNode {
+                    template_id {
+                        value(orig_template_id +"_"+ i)
+                    }
+                }
+
+                // save opt file with new template ID
+                xml_string = groovy.xml.XmlUtil.serialize(xml_temp)
+
+                file_temp = new File(template_file.getParent(), orig_template_id +"_"+ i + ".opt")
+                file_temp << xml_string
+
+                // now the rest of the tests will run with the new template/template_id
+                template_file = file_temp
+                
+            }
+            println i
+        }
 
         // 1. parse template, check if invalid
         def opt = testehr.readTemplate(template_file)
@@ -424,5 +432,68 @@ class App {
         println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
         println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions} / took ${composition_time} ms, (${(composition_time / composition_count).round(1)} ms AVG per Composition)"
 
+    }
+
+    static def validateArguments(Integer ehr_count, String template_location, Integer composition_count, String aql_location, Integer scale_templates)
+    {
+        if (ehr_count < 1)
+        {
+           println "ehrs should be a positive integer ${ehr_count}"
+           cli.usage()
+           System.exit(0)
+        }
+        if (composition_count < 1)
+        {
+           println "compositions should be a positive integer ${composition_count}"
+           cli.usage()
+           System.exit(0)
+        }
+        if (scale_templates < 1)
+        {
+           println "scaleTemplates should be a positive integer ${scale_templates}"
+           cli.usage()
+           System.exit(0)
+        }
+
+        if (!template_location)
+        {
+           println "template parameter wasn't provided"
+           cli.usage()
+           System.exit(0)
+        }
+
+        def template_file = new File(template_location)
+
+        if (!template_file.exists())
+        {
+           println "template file doesn't exists at ${template_location}"
+           cli.usage()
+           System.exit(0)
+        }
+
+        if (!aql_location)
+        {
+           println "aql parameter wasn't provided"
+           cli.usage()
+           System.exit(0)
+        }
+        
+        def aql_file = new File(aql_location)
+
+        if (!aql_file.exists())
+        {
+           println "aql file doesn't exists at ${aql_location}"
+           cli.usage()
+           System.exit(0)
+        }
+    }
+
+    static String removeBOM(byte[] bytes)
+    {
+        def inputStream = new ByteArrayInputStream(bytes)
+        def bomInputStream = new UnicodeBOMInputStream(inputStream)
+        bomInputStream.skipBOM() // NOP if no BOM is detected
+        def br = new BufferedReader(new InputStreamReader(bomInputStream))
+        return br.text // http://docs.groovy-lang.org/latest/html/groovy-jdk/java/io/BufferedReader.html#getText()
     }
 }
