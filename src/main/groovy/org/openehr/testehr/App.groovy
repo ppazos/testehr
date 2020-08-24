@@ -213,7 +213,7 @@ class App {
     {
         //println args
 
-        def before, after, ehr_time, composition_time = 0 // for time checking
+        def before, after, ehr_time // for time checking
 
         // --------------------------------------------------------------------------
         // load config
@@ -297,6 +297,21 @@ class App {
         def testehr = new App()
         def xml_temp, orig_template_id, xml_string, file_temp, temp_template_location
 
+
+        // variables for the CSV report
+        def csv = "template_id,template_accum,ehrs_created,ehrs_accum,compositions_committed,compositions_accum,compositions_commit_time,query,query_execution_time,csv_query_status\n"
+        def csv_template_id,
+            csv_template_accum = 0,
+            csv_ehrs_created = 0,
+            csv_ehrs_accum = 0,
+            csv_compositions_committed = 0,
+            csv_compositions_accum = 0,
+            csv_compositions_commit_time = 0,
+            csv_query,
+            csv_query_execution_time = 0,
+            csv_query_status
+
+
         // this parsing is done once for generating new templates
         xml_string = template_file.text
         xml_string = removeBOM(xml_string.getBytes())
@@ -304,6 +319,9 @@ class App {
         orig_template_id = xml_temp.template_id.value.text()
 
         scale_templates.times { scale_templates_i ->
+
+            csv_template_id = orig_template_id
+            csv_template_accum++
 
             // modify the template ID for the 2nd to N template
             if (scale_templates_i > 0)
@@ -338,10 +356,11 @@ class App {
                 // now the rest of the tests will run with the new template/template_id
                 template_file = file_temp
                 template_location = temp_template_location
+                csv_template_id = orig_template_id +"_"+ scale_templates_i
             }
 
 
-            println ">>>>> ${scale_templates_i}"
+            //println ">>>>> ${scale_templates_i}"
 
             // 1. parse template, check if invalid
             def opt = testehr.readTemplate(template_file)
@@ -365,6 +384,9 @@ class App {
 
             ehr_time = after - before
 
+            csv_ehrs_created = testehr.ehr_ids.size()
+            csv_ehrs_accum += csv_ehrs_created
+
 
             // 3. check template exists
             println "Checking template exists in the server..."
@@ -383,7 +405,6 @@ class App {
 
             // 5. generate compositions
             println "Committing auto-generated compositions..."
-            def committed_compositions = 0
             def generator, json_compo
             composition_count.times {
 
@@ -394,11 +415,13 @@ class App {
                 before = System.currentTimeMillis()
                 if (testehr.commitComposition(testehr.ehr_ids.pick(), json_compo))
                 {
-                    committed_compositions ++
+                    csv_compositions_committed ++
                 }
                 after = System.currentTimeMillis()
-                composition_time += (after - before) // only counts the time to commit, avoiding the JSON generation time
+                csv_compositions_commit_time += (after - before) // only counts the time to commit, avoiding the JSON generation time
             }
+
+            csv_compositions_accum += csv_compositions_committed
 
 
 
@@ -436,16 +459,33 @@ class App {
                 }
                 after = System.currentTimeMillis()
 
-                println "\t${(after - before)} ms"
+                csv_query_execution_time = after - before
+                csv_query_status = query_result.result
+
+                println "\t${csv_query_execution_time} ms"
+
+
+                // line for csv report
+                csv += "${csv_template_id},${csv_template_accum},${csv_ehrs_created},${csv_ehrs_accum},${csv_compositions_committed},${csv_compositions_accum},${csv_compositions_commit_time},${aql.getName()},${csv_query_execution_time},${csv_query_status}\n"
             }
 
 
 
             // 7. report
             println ""
-            println "EHRs Requested: ${ehr_count} / EHRs Created: ${testehr.ehr_ids.size()} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
-            println "Compositions Requested: ${composition_count} / Compositions Committed: ${committed_compositions} / took ${composition_time} ms, (${(composition_time / composition_count).round(1)} ms AVG per Composition)"
+            println "EHRs Requested: ${ehr_count} / EHRs Created: ${csv_ehrs_created} / took ${ehr_time} ms, (${(ehr_time / ehr_count).round(1)} ms AVG per EHR)"
+            println "Compositions Requested: ${composition_count} / Compositions Committed: ${csv_compositions_committed} / took ${csv_compositions_commit_time} ms, (${(csv_compositions_commit_time / composition_count).round(1)} ms AVG per Composition)"
+
+
+            // reset the ehr ids for the next template run
+            testehr.ehr_ids = []
+
+            csv_compositions_committed = 0
+            csv_compositions_commit_time = 0
         }
+
+        def report = new File("report_${new Date().format("yyyyMMddhhmmss")}.csv")
+        report << csv
     }
 
     static def validateArguments(Integer ehr_count, String template_location, Integer composition_count, String aql_location, Integer scale_templates)

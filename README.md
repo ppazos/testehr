@@ -45,6 +45,9 @@ $ java -jar build/libs/load-testehr-all.jar -ehrs 2 -template src/main/resources
  - scaleTemplates: optional argument, if provided it will use the provided template to create other templates with different template_id, and repeat the tests for that number of templates, scaleTemplates should be > 0.
 
 
+When using scaleTemplates > 1, the whole flow of creating EHRs, uploading the template, committing the COMPOSITIONs and executing the query, will be done for each of the 'scateTemplates' templates generated.
+
+
 ### Examples
 
 In the src/main/resources there are two folders with examples to run tests. One folder contains the Operational Templates and the other one correspondent AQL queries. When running a test, you need to use the OPT and query with the same name for the -template and -aql arguments mentioned above.
