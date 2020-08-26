@@ -212,7 +212,7 @@ class App {
     static void main(String[] args)
     {
         //println args
-
+        def f = new java.text.SimpleDateFormat("yyyyMMddhhmmss")
         def before, after, ehr_time // for time checking
 
         // --------------------------------------------------------------------------
@@ -430,7 +430,7 @@ class App {
 
             // 6.1. set the ehr_id in the query
             def aql_json, aql_body, query_result
-            def out_log = new File("out_${new Date().format("yyyyMMddhhmmss")}.log")
+            def out_log = new File("out_${f.format(new Date())}.log")
 
             aql_files.sort{ it.name }.eachWithIndex { aql, i ->
 
@@ -484,7 +484,7 @@ class App {
             csv_compositions_commit_time = 0
         }
 
-        def report = new File("report_${new Date().format("yyyyMMddhhmmss")}.csv")
+        def report = new File("report_${f.format(new Date())}.csv")
         report << csv
     }
 

@@ -1,0 +1,3 @@
+template_id,template_accum,ehrs_created,ehrs_accum,compositions_committed,compositions_accum,compositions_commit_time,query,query_execution_time,csv_query_status
+Diagnose,1,2,2,5,5,416,Diagnose_no_orderby.json,1010,ok
+Diagnose_1,2,2,4,5,10,308,Diagnose_no_orderby.json,778,ok
