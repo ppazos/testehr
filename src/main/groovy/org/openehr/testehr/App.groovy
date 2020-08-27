@@ -9,7 +9,10 @@ import com.cabolabs.openehr.opt.instance_generator.JsonInstanceCanonicalGenerato
 import java.util.Properties
 import java.io.InputStream
 import net.pempek.unicode.UnicodeBOMInputStream
+import org.apache.log4j.*
+import groovy.util.logging.*
 
+@Log4j
 class App {
 
     static String base_url // = 'http://192.168.1.110:8080/ehrbase/rest/openehr/v1'
@@ -211,6 +214,8 @@ class App {
 
     static void main(String[] args)
     {
+        log.info 'Running script..'
+
         //println args
         def f = new java.text.SimpleDateFormat("yyyyMMddhhmmss")
         def before, after, ehr_time // for time checking
@@ -267,6 +272,7 @@ class App {
         def composition_count = options.compositions()
         def aql_location = options.aql()
         def scale_templates = options.scaleTemplates()
+        def repeat_aql = options.repeatAql()
 
         validateArguments(ehr_count, template_location, composition_count, aql_location, scale_templates)
 
@@ -299,7 +305,7 @@ class App {
 
 
         // variables for the CSV report
-        def csv = "template_id,template_accum,ehrs_created,ehrs_accum,compositions_committed,compositions_accum,compositions_commit_time,query,query_execution_time,csv_query_status\n"
+        def csv = "template_id,template_accum,ehrs_created,ehrs_accum,compositions_committed,compositions_accum,compositions_commit_time,query,query_execution_time_avg,query_execution_time_min,query_execution_time_max,csv_query_status\n"
         def csv_template_id,
             csv_template_accum = 0,
             csv_ehrs_created = 0,
@@ -308,7 +314,9 @@ class App {
             csv_compositions_accum = 0,
             csv_compositions_commit_time = 0,
             csv_query,
-            csv_query_execution_time = 0,
+            csv_query_execution_time_avg = 0,
+            csv_query_execution_time_min = 0,
+            csv_query_execution_time_max = 0,
             csv_query_status
 
 
@@ -429,7 +437,7 @@ class App {
             println "Testing ${aql_files.size()} queries..."
 
             // 6.1. set the ehr_id in the query
-            def aql_json, aql_body, query_result
+            def aql_json, aql_body, query_result, aql_time, aql_times = []
             def out_log = new File("out_${f.format(new Date())}.log")
 
             aql_files.sort{ it.name }.eachWithIndex { aql, i ->
@@ -443,30 +451,47 @@ class App {
                     aql_body = JsonOutput.toJson(aql_json)
                 }
 
-                // 6.2. execute the query
-                print "Executing query ${(i+1).toString().padLeft(2)}) ${aql.name}".padRight(75)
-                
-                before = System.currentTimeMillis()
-                query_result = testehr.witnessQuery(aql_body)
-                if (query_result.result == 'error')
-                {
-                    print "ERROR".padRight(8)
-                    out_log << aql.name.padRight(75) + query_result.error + "\n"
+                // execute the same AQL many times to calculate the AVG, MIN and MAX
+                repeat_aql.times { at ->
+
+                    // 6.2. execute the query
+                    print "Executing query ${(i+1).toString().padLeft(2)}.${at}) ${aql.name}".padRight(75)
+                    
+                    before = System.currentTimeMillis()
+                    query_result = testehr.witnessQuery(aql_body)
+                    if (query_result.result == 'error')
+                    {
+                        print "ERROR".padRight(8)
+                        out_log << aql.name.padRight(75) + query_result.error + "\n"
+                    }
+                    else
+                    {
+                        print "OK".padRight(8)
+                    }
+                    after = System.currentTimeMillis()
+
+                    //csv_query_execution_time = after - before
+                    aql_time = after - before
+
+                    if (csv_query_execution_time_min > aql_time || csv_query_execution_time_min == 0) csv_query_execution_time_min = aql_time
+                    if (csv_query_execution_time_max < aql_time) csv_query_execution_time_max = aql_time
+
+                    aql_times << aql_time
+
+                    csv_query_status = query_result.result
+
+                    println "\t${aql_time} ms"
                 }
-                else
-                {
-                    print "OK".padRight(8)
-                }
-                after = System.currentTimeMillis()
 
-                csv_query_execution_time = after - before
-                csv_query_status = query_result.result
+                csv_query_execution_time_avg = (aql_times.sum() / repeat_aql).round(1)
 
-                println "\t${csv_query_execution_time} ms"
-
+                // reset for next loop
+                aql_times = []
+                csv_query_execution_time_min = 0
+                csv_query_execution_time_max = 0
 
                 // line for csv report
-                csv += "${csv_template_id},${csv_template_accum},${csv_ehrs_created},${csv_ehrs_accum},${csv_compositions_committed},${csv_compositions_accum},${csv_compositions_commit_time},${aql.getName()},${csv_query_execution_time},${csv_query_status}\n"
+                csv += "${csv_template_id},${csv_template_accum},${csv_ehrs_created},${csv_ehrs_accum},${csv_compositions_committed},${csv_compositions_accum},${csv_compositions_commit_time},${aql.getName()},${csv_query_execution_time_avg},${csv_query_execution_time_min},${csv_query_execution_time_max},${csv_query_status}\n"
             }
 
 
