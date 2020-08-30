@@ -84,7 +84,7 @@ class App {
     {
         try
         {
-            def post = new URL(base_url +"/definition/template/adl1.4/"+ template_id).openConnection()
+            def post = new URL(base_url +"/definition/template/adl1.4/"+ template_id.replaceAll(" ", "%20")).openConnection()
 
             post.setRequestMethod("GET")
             post.setRequestProperty("Accept", "application/xml")

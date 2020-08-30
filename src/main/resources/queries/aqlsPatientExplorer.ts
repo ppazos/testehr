@@ -9,6 +9,7 @@ export const aqlPatientBloodPressure = `
     order by w/data[at0001]/events[at0006]/time/value/value desc`;
 
 
+/*** testd without the order by */
 export const aqlPatientPulse =`
         SELECT j/data[at0002]/events[at0003]/data[at0001]/items[at0004]/value as pulse,
              j/data[at0002]/events[at0003]/time/value/value as time
