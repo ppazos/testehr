@@ -43,6 +43,7 @@ $ java -jar build/libs/load-testehr-all.jar -ehrs 2 -template src/main/resources
  - compositions: is the number if COMPOSITIONS to be committed (distributed randomly between the created EHRs)
  - aql: is a witness query, related with the OPT, used to measure query execution times, the file should contain a valid JSON request for the POST /query/aql openEHR REST endpoint
  - scaleTemplates: optional argument, if provided it will use the provided template to create other templates with different template_id, and repeat the tests for that number of templates, scaleTemplates should be > 0.
+ - repeatAql: optional number of times the query will be executed to calculate the min, max and avg execution times, default value is 1
 
 
 When using scaleTemplates > 1, the whole flow of creating EHRs, uploading the template, committing the COMPOSITIONs and executing the query, will be done for each of the 'scateTemplates' templates generated.
