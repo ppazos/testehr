@@ -46,7 +46,7 @@ $ java -jar build/libs/load-testehr-all.jar -ehrs 2 -template src/main/resources
  - repeatAql: optional number of times the query will be executed to calculate the min, max and avg execution times, default value is 1
 
 
-When using scaleTemplates > 1, the whole flow of creating EHRs, uploading the template, committing the COMPOSITIONs and executing the query, will be done for each of the 'scateTemplates' templates generated.
+When using scaleTemplates > 1, the whole flow of creating EHRs, uploading the template, committing the COMPOSITIONs and executing the query, will be done for each of the 'scaleTemplates' templates generated.
 
 
 ### Examples
